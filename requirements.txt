@@ -5,3 +5,9 @@ matplotlib
 openpyxl
 seaborn
 python-dotenv==1.0.1
+fastapi
+xgboost
+requests
+uvicorn
+scikit-learn
+joblib
