@@ -383,7 +383,7 @@ async function predict() {
   loadView.classList.add('visible');
 
   try {
-    const res = await fetch(`${API}/forecast_tomorrow?lat=${selectedCity.lat}&lon=${selectedCity.lon}`);
+    const res = await fetch(`${API_BASE}/forecast_tomorrow?lat=${selectedCity.lat}&lon=${selectedCity.lon}`);
     if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.detail || 'HTTP ' + res.status); }
     const data = await res.json();
     loadView.classList.remove('visible');
