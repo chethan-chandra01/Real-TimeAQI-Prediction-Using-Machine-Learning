@@ -1,0 +1,7 @@
+pandas
+scikit-learn
+numpy
+matplotlib
+openpyxl
+seaborn
+python-dotenv==1.0.1
