@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AQI Forecast India</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f2f5;
+  --surface:#ffffff;
+  --surface2:#f7f8fa;
+  --border:#e4e6ea;
+  --text:#1c1e21;
+  --text2:#606770;
+  --text3:#9ea3ad;
+  --blue:#1877f2;
+  --blue-dark:#166fe5;
+  --blue-bg:#e7f0fd;
+  --radius:12px;
+  --shadow:0 2px 8px rgba(0,0,0,.08);
+  --shadow-md:0 4px 16px rgba(0,0,0,.12);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ── Layout ── */
+.layout{display:grid;grid-template-columns:340px 1fr;min-height:100vh;max-width:1100px;margin:0 auto;gap:0}
+
+/* ── Sidebar ── */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100vh;position:sticky;top:0;overflow:hidden}
+.sidebar-header{padding:20px 20px 16px;border-bottom:1px solid var(--border)}
+.sidebar-header h1{font-size:17px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.sidebar-header p{font-size:13px;color:var(--text2);line-height:1.4}
+.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,#1877f2,#0a5dc2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+
+/* Search */
+.search-wrap{padding:12px 20px;border-bottom:1px solid var(--border)}
+.search-box{position:relative}
+.search-box input{width:100%;padding:9px 12px 9px 36px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--surface2);color:var(--text);outline:none;transition:border-color .15s}
+.search-box input:focus{border-color:var(--blue);background:#fff}
+.search-box svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3)}
+
+/* City list */
+.city-list{flex:1;overflow-y:auto;padding:8px 12px}
+.city-list::-webkit-scrollbar{width:4px}
+.city-list::-webkit-scrollbar-track{background:transparent}
+.city-list::-webkit-scrollbar-thumb{background:#ddd;border-radius:4px}
+
+.state-group{margin-bottom:4px}
+.state-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);padding:10px 8px 4px;display:block}
+.city-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;transition:background .12s;border:1.5px solid transparent}
+.city-item:hover{background:var(--surface2)}
+.city-item.active{background:var(--blue-bg);border-color:#c2d7fb}
+.city-item .city-dot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0;transition:background .15s}
+.city-item.active .city-dot{background:var(--blue)}
+.city-item .city-info{flex:1;min-width:0}
+.city-item .city-name{font-size:14px;font-weight:500;color:var(--text)}
+.city-item.active .city-name{color:var(--blue);font-weight:600}
+.city-item .city-state{font-size:12px;color:var(--text3);margin-top:1px}
+.city-item .city-aqi-chip{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
+
+/* Predict button */
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--border)}
+.predict-btn{width:100%;padding:11px;font-size:15px;font-weight:600;cursor:pointer;border-radius:8px;border:none;background:linear-gradient(135deg,#1877f2,#0a5dc2);color:#fff;transition:opacity .15s,transform .1s;display:flex;align-items:center;justify-content:center;gap:8px}
+.predict-btn:hover{opacity:.92}
+.predict-btn:active{transform:scale(.99)}
+.predict-btn:disabled{opacity:.5;cursor:not-allowed}
+.selected-indicator{font-size:12px;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.selected-indicator .dot{width:7px;height:7px;border-radius:50%;background:var(--blue)}
+
+/* ── Main content ── */
+.main{padding:28px 28px 48px;overflow-y:auto}
+
+/* Empty state */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;color:var(--text2)}
+.empty-icon{width:72px;height:72px;background:var(--surface);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;margin-bottom:16px;box-shadow:var(--shadow)}
+.empty-state h2{font-size:18px;font-weight:600;color:var(--text);margin-bottom:6px}
+.empty-state p{font-size:14px;max-width:280px;line-height:1.5}
+
+/* Result */
+.result{display:none}
+.result.visible{display:block}
+
+/* City header */
+.city-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px}
+.city-header-left h2{font-size:24px;font-weight:700;letter-spacing:-.3px;margin-bottom:3px}
+.city-header-left .city-meta{font-size:13px;color:var(--text2)}
+.trend-pill{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;padding:6px 14px;border-radius:20px}
+.trend-worsening{background:#fff0f0;color:#c81e1e}
+.trend-improving{background:#f0fdf4;color:#15803d}
+.trend-stable{background:#f5f5f5;color:#555}
+
+/* AQI big card */
+.aqi-big-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;text-align:center;margin-bottom:16px;box-shadow:var(--shadow)}
+.aqi-big-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:12px}
+.aqi-big-number{font-size:80px;font-weight:800;letter-spacing:-3px;line-height:1;margin-bottom:10px}
+.aqi-badge{display:inline-block;padding:5px 18px;border-radius:20px;font-size:14px;font-weight:600;margin-bottom:16px}
+
+/* AQI bar */
+.aqi-bar-track{position:relative;height:10px;border-radius:5px;background:linear-gradient(to right,#55a84f,#a3c853,#fff033,#f29c33,#e93f33,#af2d24);margin:0 auto 8px;max-width:400px}
+.aqi-bar-marker{position:absolute;top:-6px;width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid #111;transform:translateX(-50%);transition:left .6s cubic-bezier(.4,0,.2,1);box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.aqi-scale{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);max-width:400px;margin:0 auto}
+
+/* Metrics row */
+.metrics-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.metric-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.metric-card .mc-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px}
+.metric-card .mc-value{font-size:26px;font-weight:700;color:var(--text);margin-bottom:2px}
+.metric-card .mc-sub{font-size:12px;color:var(--text2)}
+
+/* Pollutants card */
+.info-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+.info-card h3{font-size:13px;font-weight:600;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:6px}
+.pollutant-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.poll-item{background:var(--surface2);border-radius:8px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between}
+.poll-name{font-size:13px;color:var(--text2);font-weight:500}
+.poll-val{font-size:15px;font-weight:700;color:var(--text)}
+
+/* Loading */
+.loading-view{display:none;align-items:center;justify-content:center;gap:12px;min-height:60vh;flex-direction:column;color:var(--text2)}
+.loading-view.visible{display:flex}
+.spinner{width:32px;height:32px;border:3px solid #ddd;border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-view p{font-size:14px;margin-top:4px}
+
+/* Error */
+.error-view{display:none;background:#fff0f0;border:1px solid #fca5a5;border-radius:var(--radius);padding:16px 20px;font-size:14px;color:#b91c1c;margin-bottom:16px}
+.error-view.visible{display:block}
+
+/* AQI colors */
+.c-good{color:#15803d}.c-good-bg{background:#f0fdf4;color:#14532d}
+.c-satisfactory{color:#4d7c0f}.c-satisfactory-bg{background:#f7fee7;color:#365314}
+.c-moderate{color:#b45309}.c-moderate-bg{background:#fffbeb;color:#78350f}
+.c-poor{color:#c2410c}.c-poor-bg{background:#fff7ed;color:#7c2d12}
+.c-verypoor{color:#b91c1c}.c-verypoor-bg{background:#fef2f2;color:#771d1d}
+.c-severe{color:#7f1d1d}.c-severe-bg{background:#450a0a;color:#fca5a5}
+
+@media(max-width:700px){
+  .layout{grid-template-columns:1fr;height:auto}
+  .sidebar{height:auto;position:relative;max-height:360px}
+  .main{padding:16px}
+  .metrics-row{grid-template-columns:repeat(3,1fr)}
+  .aqi-big-number{font-size:60px}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>
+        <div class="logo-icon">🌬️</div>
+        AQI Forecast
+      </h1>
+      <p>Tomorrow's Air Quality Index prediction using live pollutant data and ML</p>
+    </div>
+
+    <div class="search-wrap">
+      <div class="search-box">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="search-input" placeholder="Search cities..." oninput="filterCities(this.value)">
+      </div>
+    </div>
+
+    <div class="city-list" id="city-list"></div>
+
+    <div class="sidebar-footer">
+      <div class="selected-indicator" id="selected-indicator" style="display:none">
+        <div class="dot"></div>
+        <span id="selected-label">No city selected</span>
+      </div>
+      <button class="predict-btn" id="predict-btn" onclick="predict()" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        Predict tomorrow's AQI
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main class="main">
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">📍</div>
+      <h2>Select a City</h2>
+      <p>Choose any city from the list on the left to get tomorrow's AQI forecast</p>
+    </div>
+
+    <div class="loading-view" id="loading-view">
+      <div class="spinner"></div>
+      <p>Fetching live data and running forecast...</p>
+    </div>
+
+    <div class="error-view" id="error-view"></div>
+
+    <div class="result" id="result">
+      <div class="city-header">
+        <div class="city-header-left">
+          <h2 id="out-city">—</h2>
+          <div class="city-meta" id="out-meta">—</div>
+        </div>
+        <span class="trend-pill" id="out-trend">—</span>
+      </div>
+
+      <div class="aqi-big-card">
+        <div class="aqi-big-label">Predicted AQI — Tomorrow</div>
+        <div class="aqi-big-number" id="out-aqi-num">—</div>
+        <div><span class="aqi-badge" id="out-aqi-badge">—</span></div>
+        <div style="margin-top:16px">
+          <div class="aqi-bar-track">
+            <div class="aqi-bar-marker" id="out-marker" style="left:2%"></div>
+          </div>
+          <div class="aqi-scale">
+            <span>Good</span><span>Satisfactory</span><span>Moderate</span><span>Poor</span><span>Very Poor</span><span>Severe</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric-card">
+          <div class="mc-label">Today (est.)</div>
+          <div class="mc-value" id="out-today">—</div>
+          <div class="mc-sub">Current AQI</div>
+        </div>
+        <div class="metric-card">
+          <div class="mc-label">Change</div>
+          <div class="mc-value" id="out-delta">—</div>
+          <div class="mc-sub">vs today</div>
+        </div>
+        <div class="metric-card">
+          <div class="mc-label">7-day avg</div>
+          <div class="mc-value" id="out-avg">—</div>
+          <div class="mc-sub">Recent baseline</div>
+        </div>
+      </div>
+
+      <div class="info-card">
+        <h3>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Today's Key Pollutants
+        </h3>
+        <div class="pollutant-grid">
+          <div class="poll-item"><span class="poll-name">PM2.5</span><span class="poll-val" id="feat-pm25">—</span></div>
+          <div class="poll-item"><span class="poll-name">CO</span><span class="poll-val" id="feat-co">—</span></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+
+const CITIES = [
+  {state:'Delhi NCR',    cities:[
+    {name:'New Delhi',      lat:28.6139, lon:77.2090},
+    {name:'Noida',          lat:28.5355, lon:77.3910},
+    {name:'Gurgaon',        lat:28.4595, lon:77.0266},
+  ]},
+  {state:'Maharashtra',  cities:[
+    {name:'Mumbai',         lat:19.0760, lon:72.8777},
+    {name:'Pune',           lat:18.5204, lon:73.8567},
+    {name:'Nagpur',         lat:21.1458, lon:79.0882},
+  ]},
+  {state:'Karnataka',    cities:[
+    {name:'Bengaluru',      lat:12.9716, lon:77.5946},
+    {name:'Mysuru',         lat:12.2958, lon:76.6394},
+  ]},
+  {state:'Telangana',    cities:[
+    {name:'Hyderabad',      lat:17.3850, lon:78.4867},
+    {name:'Warangal',       lat:17.9784, lon:79.5941},
+  ]},
+  {state:'Tamil Nadu',   cities:[
+    {name:'Chennai',        lat:13.0827, lon:80.2707},
+    {name:'Coimbatore',     lat:11.0168, lon:76.9558},
+  ]},
+  {state:'West Bengal',  cities:[
+    {name:'Kolkata',        lat:22.5726, lon:88.3639},
+    {name:'Howrah',         lat:22.5958, lon:88.2636},
+  ]},
+  {state:'Uttar Pradesh',cities:[
+    {name:'Lucknow',        lat:26.8467, lon:80.9462},
+    {name:'Kanpur',         lat:26.4499, lon:80.3319},
+    {name:'Varanasi',       lat:25.3176, lon:82.9739},
+    {name:'Agra',           lat:27.1767, lon:78.0081},
+  ]},
+  {state:'Rajasthan',    cities:[
+    {name:'Jaipur',         lat:26.9124, lon:75.7873},
+    {name:'Jodhpur',        lat:26.2389, lon:73.0243},
+  ]},
+  {state:'Gujarat',      cities:[
+    {name:'Ahmedabad',      lat:23.0225, lon:72.5714},
+    {name:'Surat',          lat:21.1702, lon:72.8311},
+  ]},
+  {state:'Madhya Pradesh',cities:[
+    {name:'Bhopal',         lat:23.2599, lon:77.4126},
+    {name:'Indore',         lat:22.7196, lon:75.8577},
+  ]},
+  {state:'Punjab',       cities:[
+    {name:'Ludhiana',       lat:30.9010, lon:75.8573},
+    {name:'Amritsar',       lat:31.6340, lon:74.8723},
+  ]},
+  {state:'Andhra Pradesh',cities:[
+    {name:'Visakhapatnam',  lat:17.6868, lon:83.2185},
+    {name:'Vijayawada',     lat:16.5062, lon:80.6480},
+  ]},
+  {state:'Bihar',        cities:[
+    {name:'Patna',          lat:25.5941, lon:85.1376},
+  ]},
+  {state:'Odisha',       cities:[
+    {name:'Bhubaneswar',    lat:20.2961, lon:85.8245},
+  ]},
+  {state:'Kerala',       cities:[
+    {name:'Kochi',          lat:9.9312,  lon:76.2673},
+    {name:'Thiruvananthapuram',lat:8.5241,lon:76.9366},
+  ]},
+];
+
+let selectedCity = null;
+let allCities = [];
+
+function buildList() {
+  const container = document.getElementById('city-list');
+  container.innerHTML = '';
+  CITIES.forEach(group => {
+    allCities.push(...group.cities.map(c => ({...c, state: group.state})));
+    const label = document.createElement('span');
+    label.className = 'state-label';
+    label.textContent = group.state;
+    container.appendChild(label);
+    group.cities.forEach(city => {
+      container.appendChild(makeCityItem({...city, state: group.state}));
+    });
+  });
+}
+
+function makeCityItem(city) {
+  const el = document.createElement('div');
+  el.className = 'city-item';
+  el.id = 'city-' + city.name.replace(/\s+/g,'_');
+  el.innerHTML = `<div class="city-dot"></div><div class="city-info"><div class="city-name">${city.name}</div></div>`;
+  el.onclick = () => selectCity(city);
+  return el;
+}
+
+function selectCity(city) {
+  document.querySelectorAll('.city-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('city-' + city.name.replace(/\s+/g,'_'));
+  if (el) el.classList.add('active');
+  selectedCity = city;
+  document.getElementById('selected-indicator').style.display = 'flex';
+  document.getElementById('selected-label').textContent = city.name + ', ' + city.state;
+  document.getElementById('predict-btn').disabled = false;
+}
+
+function filterCities(q) {
+  const container = document.getElementById('city-list');
+  container.innerHTML = '';
+  if (!q.trim()) { buildList(); return; }
+  const filtered = allCities.filter(c => c.name.toLowerCase().includes(q.toLowerCase()) || c.state.toLowerCase().includes(q.toLowerCase()));
+  if (filtered.length === 0) {
+    container.innerHTML = '<p style="padding:20px;text-align:center;color:var(--text3);font-size:13px">No cities found</p>';
+    return;
+  }
+  filtered.forEach(city => container.appendChild(makeCityItem(city)));
+}
+
+function catKey(cat) {
+  return {Good:'good',Satisfactory:'satisfactory',Moderate:'moderate',Poor:'poor','Very Poor':'verypoor',Severe:'severe'}[cat]||'moderate';
+}
+
+async function predict() {
+  if (!selectedCity) return;
+  const errView   = document.getElementById('error-view');
+  const loadView  = document.getElementById('loading-view');
+  const emptyState= document.getElementById('empty-state');
+  const result    = document.getElementById('result');
+
+  errView.classList.remove('visible');
+  result.classList.remove('visible');
+  emptyState.style.display = 'none';
+  loadView.classList.add('visible');
+
+  try {
+    const res = await fetch(`${API}/forecast_tomorrow?lat=${selectedCity.lat}&lon=${selectedCity.lon}`);
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.detail || 'HTTP ' + res.status); }
+    const data = await res.json();
+    loadView.classList.remove('visible');
+    render(data);
+  } catch(e) {
+    loadView.classList.remove('visible');
+    errView.textContent = 'Error: ' + e.message + '. Make sure your FastAPI server is running.';
+    errView.classList.add('visible');
+    emptyState.style.display = 'flex';
+  }
+}
+
+function render(d) {
+  const ck = catKey(d.aqi_category);
+
+  document.getElementById('out-city').textContent = selectedCity.name;
+  document.getElementById('out-meta').textContent = selectedCity.state + ' · Forecast for ' + d.forecast_date;
+
+  const numEl = document.getElementById('out-aqi-num');
+  numEl.textContent = parseFloat(d.predicted_aqi).toFixed(0);
+  numEl.className = 'aqi-big-number c-' + ck;
+
+  const badge = document.getElementById('out-aqi-badge');
+  badge.textContent = d.aqi_category;
+  badge.className = 'aqi-badge c-' + ck + '-bg';
+
+  document.getElementById('out-today').textContent = d.today_aqi_estimate;
+  document.getElementById('out-avg').textContent = d.key_inputs['7day_avg'];
+
+  const delta = d.predicted_aqi - d.today_aqi_estimate;
+  const deltaEl = document.getElementById('out-delta');
+  deltaEl.textContent = (delta >= 0 ? '+' : '') + delta.toFixed(0);
+  deltaEl.style.color = delta > 10 ? '#c81e1e' : delta < -10 ? '#15803d' : '#555';
+
+  document.getElementById('feat-pm25').textContent = parseFloat(d.key_inputs.today_pm25).toFixed(1) + ' µg/m³';
+  document.getElementById('feat-co').textContent = parseFloat(d.key_inputs.today_co).toFixed(1) + ' µg/m³';
+
+  const pill = document.getElementById('out-trend');
+  const t = d.trend;
+  pill.textContent = (t==='Worsening'?'↑ ':t==='Improving'?'↓ ':'→ ') + t;
+  pill.className = 'trend-pill trend-' + t.toLowerCase();
+
+  const pct = Math.min(97, Math.max(3, (d.predicted_aqi / 500) * 100));
+  document.getElementById('out-marker').style.left = pct + '%';
+
+  document.getElementById('result').classList.add('visible');
+}
+
+buildList();
+</script>
+</body>
+</html>
